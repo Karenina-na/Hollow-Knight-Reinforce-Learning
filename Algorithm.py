@@ -8,11 +8,10 @@ from shared_adam import SharedAdam
 
 os.environ["OMP_NUM_THREADS"] = "1"
 
-# A3C
+# Advantage Actor Critic
 UPDATE_GLOBAL_ITER = 5  # update global network every 5 episodes
 GAMMA = 0.9  # reward discount
 MAX_EP = 1800  # maximum episode
-PARAMETER_NUM = mp.cpu_count()  # the number of parameters
 
 env = gym.make('CartPole-v1', render_mode='rgb_array')
 N_S = env.observation_space.shape[0]
@@ -169,10 +168,10 @@ if __name__ == "__main__":
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(PARAMETER_NUM)]
+    worker = Worker(gnet, opt, global_ep, global_ep_r, res_queue, 0)
 
     # start training
-    [w.start() for w in workers]
+    worker.start()
 
     # record episode reward to plot
     res = []
@@ -186,7 +185,7 @@ if __name__ == "__main__":
             break
 
     # wait for all workers to finish
-    [w.join() for w in workers]
+    worker.join()
 
     print("Finished")
 
