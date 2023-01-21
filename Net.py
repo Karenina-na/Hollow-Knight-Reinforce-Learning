@@ -86,6 +86,10 @@ class Policy_move(nn.Module):
         self.policy_m2 = nn.Tanh()
         self.policy_m3 = nn.Linear(512, m_num)
 
+        # initialize weights
+        set_init(self.policy_m1)
+        set_init(self.policy_m3)
+
     def forward(self, x):
         feature = self.features(x)
 
@@ -158,6 +162,10 @@ class Policy_action(nn.Module):
         self.policy_a2 = nn.Tanh()
         self.policy_a3 = nn.Linear(512, a_num)
 
+        # initialize weights
+        set_init(self.policy_a1)
+        set_init(self.policy_a3)
+
     def forward(self, x):
         feature = self.features(x)
 
@@ -228,6 +236,10 @@ class Value(nn.Module):
         self.value_1 = nn.Linear(512, 512)
         self.value_2 = nn.Tanh()
         self.value_3 = nn.Linear(512, 1)
+
+        # initialize weights
+        set_init(self.value_1)
+        set_init(self.value_3)
 
     def forward(self, x):
         feature = self.features(x)
