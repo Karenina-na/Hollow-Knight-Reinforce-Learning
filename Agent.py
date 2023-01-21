@@ -1,5 +1,5 @@
 import numpy as np
-from Net import policy_move, policy_action, value
+from Net import Policy_move, Policy_action, Value
 import torch
 import torch.nn.functional as F
 
@@ -8,14 +8,14 @@ class Agent:
     def __init__(self, state_dim, move_num, act_num, e_greed=0.1, e_greed_decrement=0, lr=0.001, GAMMA=0.9,
                  load_path=None):
         # local and target network
-        self.policy_move_local = policy_move(state_dim, move_num)
-        self.policy_move_target = policy_move(state_dim, move_num)
+        self.policy_move_local = Policy_move(state_dim, move_num)
+        self.policy_move_target = Policy_move(state_dim, move_num)
 
-        self.policy_action_local = policy_action(state_dim, act_num)
-        self.policy_action_target = policy_action(state_dim, act_num)
+        self.policy_action_local = Policy_action(state_dim, act_num)
+        self.policy_action_target = Policy_action(state_dim, act_num)
 
-        self.value_local = value(state_dim)
-        self.value_target = value(state_dim)
+        self.value_local = Value(state_dim)
+        self.value_target = Value(state_dim)
 
         # variables
         self.move_num = move_num
@@ -46,15 +46,12 @@ class Agent:
         :return:    the action and move sampled from the agent's policy
         """
         # predict the action and move
-        pred_move = self.policy_move_local.forward(state)
-        pred_act = self.policy_action_local.forward(state)
+        pred_move = self.policy_move_local.choose_move(state)
+        pred_act = self.policy_action_local.choose_action(state)
 
         # random move
         sample = np.random.rand()
-        if sample < self.e_greed:
-            move = self.better_move(hornet_x, player_x, hornet_skill1)
-        else:
-            move = np.argmax(pred_move)
+        move = pred_move if sample > self.e_greed else self.__better_move(hornet_x, player_x, hornet_skill1)
 
         # change the e_greed
         self.e_greed = max(
@@ -62,15 +59,7 @@ class Agent:
 
         # random action
         sample = np.random.rand()
-        if sample < self.e_greed:
-            act = self.better_action(soul, hornet_x, hornet_y, player_x, hornet_skill1)
-        else:
-            act = np.argmax(pred_act)
-            if soul < 33:
-                if act == 4 or act == 5:
-                    pred_act[0][4] = -30
-                    pred_act[0][5] = -30
-            act = np.argmax(pred_act)
+        act = pred_act if sample > self.e_greed else self.__better_action(soul, hornet_x, hornet_y, player_x, hornet_skill1)
 
         # change the e_greed
         self.e_greed = max(
@@ -78,7 +67,7 @@ class Agent:
 
         return move, act
 
-    def better_action(self, soul, hornet_x, hornet_y, player_x, hornet_skill1):
+    def __better_action(self, soul, hornet_x, hornet_y, player_x, hornet_skill1):
         """
         Sample an action from the agent's policy.
         :param soul:    the current soul of the hornet
@@ -115,7 +104,7 @@ class Agent:
         else:
             return 6
 
-    def better_move(self, hornet_x, player_x, hornet_skill1):
+    def __better_move(self, hornet_x, player_x, hornet_skill1):
         """
         Sample a move from the agent's policy.
         :param hornet_x:    the current x of the hornet
@@ -175,7 +164,7 @@ class Agent:
         """
         return self.value_local.forward(state)
 
-    def train_move_action(self, state, moves, actions, rewards, next_state, done, gamma):
+    def train_move_action_vallue(self, state, moves, actions, rewards, next_state, done, gamma):
         """
         Train the agent.
         :param state:   the state of the environment
@@ -185,6 +174,7 @@ class Agent:
         :param next_state:  the next state of the environment
         :param done:    the done of the environment
         :param gamma:   the discount factor
+        :return:    the loss of the agent
         """
         next_state_target = self.value_local.forward(next_state)
         target = rewards + gamma * next_state_target
@@ -197,8 +187,8 @@ class Agent:
 
         # update the value network
         self.optimizer_value.zero_grad()
-        loss_value = td_error.pow(2)
-        loss_value.backward()
+        value_loss = td_error.pow(2)
+        value_loss.backward()
         self.optimizer_value.step()
 
         # calculate the advantage
@@ -208,13 +198,13 @@ class Agent:
         move_pred = self.policy_move_local.forward(state)
         move_log_prob = F.softmax(move_pred, dim=1)
         move_distribution = self.distribution(move_log_prob)
-        move_loss = -move_distribution.log_prob(moves) * advantage.detach()
+        move_loss = -move_distribution.log_prob(moves) * advantage.detach().squeeze()
 
         # calculate the loss of the action network
         action_pred = self.policy_action_local.forward(state)
         action_log_prob = F.softmax(action_pred, dim=1)
         action_distribution = self.distribution(action_log_prob)
-        action_loss = -action_distribution.log_prob(actions) * advantage.detach()
+        action_loss = -action_distribution.log_prob(actions) * advantage.detach().squeeze()
 
         # update the move and action network
         self.optimizer_move.zero_grad()
@@ -223,6 +213,9 @@ class Agent:
         action_loss.backward()
         self.optimizer_move.step()
         self.optimizer_action.step()
+
+        # return loss
+        return move_loss, action_loss, value_loss
 
     def save(self, path):
         """
@@ -252,8 +245,26 @@ class Agent:
 
 
 if __name__ == '__main__':
-    s = torch.randn(1, 3, 800, 800)
-    A = Agent(3, 2, 3, e_greed=0.5)
-    for i in range(0, 10):
-        s = torch.randn(1, 3, 800, 800)
-        print(A.sample(s, 10, 5, 1, 0, False))
+    states = torch.randn(1, 3, 800, 800)
+
+    # state_dim, move_num, action_num, e_greed, e_greed_decrement, lr, GAMMA, load_path
+    agent = Agent(3, 2, 4, e_greed=0.1, e_greed_decrement=0, lr=0.001, GAMMA=0.9, load_path=None)
+
+    # state, soul, hornet_x, hornet_y, player_x, hornet_skill1
+    move, action = agent.sample(states, 5, 10, 10, 0, False)
+    print(move, action)
+
+    # state
+    value = agent.value_state(states)
+    print(value)
+
+    # states, moves, actions, rewards, next_state, done, gamma
+    move = torch.tensor(move)
+    action = torch.tensor(action)
+    next_state = torch.randn(1, 3, 800, 800)
+    move_loss, action_loss, value_loss = agent.train_move_action_vallue(states, move, action, 1, next_state, False, 0.9)
+    print(move_loss, action_loss, value_loss)
+
+    # update the target network
+    agent.update_target()
+
