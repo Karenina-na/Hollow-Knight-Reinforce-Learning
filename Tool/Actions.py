@@ -160,6 +160,7 @@ def Rush():
 
 
 # Cure
+# 7
 def Cure():
     PressKey(N)
     time.sleep(1.4)

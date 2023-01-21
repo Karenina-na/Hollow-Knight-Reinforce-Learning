@@ -15,28 +15,25 @@ class ReplayMemory:
     def append(self, exp):
         self.count += 1
         self.buffer.append(exp)
-        # save to file
-        # if self.count % self.size == 0:
-        #      self.save(self.file_name)
 
     def sample(self, batch_size):
         # random batch
         mini_batch = random.sample(self.buffer, batch_size)
 
-        obs_batch, move_batch, action_batch, reward_batch, next_obs_batch, done_batch = [], [], [], [], [], []
+        state_batch, move_batch, action_batch, reward_batch, next_state_batch, done_batch = [], [], [], [], [], []
 
         for experience in mini_batch:
             s, m, a, r, s_p, done = experience
-            obs_batch.append(s)
+            state_batch.append(s)
             move_batch.append(m)
             action_batch.append(a)
             reward_batch.append(r)
-            next_obs_batch.append(s_p)
+            next_state_batch.append(s_p)
             done_batch.append(done)
 
-        return np.array(obs_batch).astype('float32'), np.array(move_batch).astype('int32'),\
+        return np.array(state_batch).astype('float32'), np.array(move_batch).astype('int32'),\
             np.array(action_batch).astype('int32'), np.array(reward_batch).astype('float32'), \
-            np.array(next_obs_batch).astype('float32'), np.array(done_batch).astype('float32')
+            np.array(next_state_batch).astype('float32'), np.array(done_batch).astype('float32')
 
     def save(self, file_name):
         count = 0

@@ -2,6 +2,7 @@ import numpy as np
 from Net import Policy_move, Policy_action, Value
 import torch
 import torch.nn.functional as F
+import os
 
 
 class Agent:
@@ -33,6 +34,9 @@ class Agent:
 
         # distribution
         self.distribution = torch.distributions.Categorical
+
+        # load
+        self.load(load_path)
 
     def sample(self, state, soul, hornet_x, hornet_y, player_x, hornet_skill1):
         """
@@ -164,7 +168,7 @@ class Agent:
         """
         return self.value_local.forward(state)
 
-    def train_move_action_vallue(self, state, moves, actions, rewards, next_state, done, gamma):
+    def train_move_action_value(self, state, moves, actions, rewards, next_state, done, gamma):
         """
         Train the agent.
         :param state:   the state of the environment
@@ -236,12 +240,15 @@ class Agent:
         """
         if path is None:
             return
-        self.policy_move_local.load_state_dict(torch.load(path + '-policy_move_local.pth'))
-        self.policy_move_target.load_state_dict(torch.load(path + '-policy_move_target.pth'))
-        self.policy_action_local.load_state_dict(torch.load(path + '-policy_action_local.pth'))
-        self.policy_action_target.load_state_dict(torch.load(path + '-policy_action_target.pth'))
-        self.value_local.load_state_dict(torch.load(path + '-value_local.pth'))
-        self.value_target.load_state_dict(torch.load(path + '-value_target.pth'))
+        if os.path.exists(path + '-policy_move_local.pth') and os.path.exists(path + '-policy_move_target.pth') and \
+                os.path.exists(path + '-policy_action_local.pth') and os.path.exists(path + '-policy_action_target.pth') and \
+                os.path.exists(path + '-value_local.pth') and os.path.exists(path + '-value_target.pth'):
+            self.policy_move_local.load_state_dict(torch.load(path + '-policy_move_local.pth'))
+            self.policy_move_target.load_state_dict(torch.load(path + '-policy_move_target.pth'))
+            self.policy_action_local.load_state_dict(torch.load(path + '-policy_action_local.pth'))
+            self.policy_action_target.load_state_dict(torch.load(path + '-policy_action_target.pth'))
+            self.value_local.load_state_dict(torch.load(path + '-value_local.pth'))
+            self.value_target.load_state_dict(torch.load(path + '-value_target.pth'))
 
 
 if __name__ == '__main__':
@@ -262,7 +269,7 @@ if __name__ == '__main__':
     move = torch.tensor(move)
     action = torch.tensor(action)
     next_state = torch.randn(1, 3, 800, 800)
-    move_loss, action_loss, value_loss = agent.train_move_action_vallue(states, move, action, 1, next_state, False, 0.9)
+    move_loss, action_loss, value_loss = agent.train_move_action_value(states, move, action, 1, next_state, False, 0.9)
     print(move_loss, action_loss, value_loss)
 
     # update the target network
