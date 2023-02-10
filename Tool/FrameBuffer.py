@@ -1,10 +1,11 @@
+import ctypes
 import threading
 import time
 import collections
 import cv2
 import win32gui, win32ui, win32con, win32api
 import numpy as np
-import tensorflow as tf
+import torch
 
 
 class FrameBuffer(threading.Thread):
@@ -14,13 +15,14 @@ class FrameBuffer(threading.Thread):
         self.name = name
         self.buffer = collections.deque(maxlen=maxlen)
         self.lock = threading.Lock()
+        self.hwnd = win32gui.FindWindow(None, 'Hollow Knight')
 
-        self.station_size = (230, 230, 1670, 930)
+        left, top, width, high = self.get_window_rect(self.hwnd)
+        self.station_size = (left, top, width, high)
         self.WIDTH = width
         self.HEIGHT = height
         self._stop_event = threading.Event()
 
-        self.hwnd = win32gui.FindWindow(None, 'Hollow Knight')
         self.left, self.top, x2, y2 = self.station_size
         self.width = x2 - self.left + 1
         self.height = y2 - self.top + 1
@@ -43,7 +45,7 @@ class FrameBuffer(threading.Thread):
     def get_frame(self):
         self.lock.acquire(blocking=True)
         station = cv2.resize(cv2.cvtColor(self.grab_screen(), cv2.COLOR_RGBA2RGB), (self.WIDTH, self.HEIGHT))
-        self.buffer.append(tf.convert_to_tensor(station))
+        self.buffer.append(torch.tensor(station))
         self.lock.release()
 
     def get_buffer(self):
@@ -69,3 +71,18 @@ class FrameBuffer(threading.Thread):
         img.shape = (self.height, self.width, 4)
 
         return img
+
+    def get_window_rect(self, hwnd):
+        try:
+            f = ctypes.windll.dwmapi.DwmGetWindowAttribute
+        except WindowsError:
+            f = None
+        if f:
+            rect = ctypes.wintypes.RECT()
+            DWMWA_EXTENDED_FRAME_BOUNDS = 9
+            f(ctypes.wintypes.HWND(hwnd),
+              ctypes.wintypes.DWORD(DWMWA_EXTENDED_FRAME_BOUNDS),
+              ctypes.byref(rect),
+              ctypes.sizeof(rect)
+              )
+            return rect.left, rect.top, rect.right + rect.left, rect.bottom + rect.top

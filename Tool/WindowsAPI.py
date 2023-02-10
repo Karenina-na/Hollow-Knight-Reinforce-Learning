@@ -1,3 +1,5 @@
+import ctypes
+
 import numpy as np
 import win32api
 import win32con
@@ -8,8 +10,27 @@ import win32ui
 hwnd = win32gui.FindWindow(None, 'Hollow Knight')
 
 
+# get the position of the windows
+def get_window_rect(hwnd):
+    try:
+        f = ctypes.windll.dwmapi.DwmGetWindowAttribute
+    except WindowsError:
+        f = None
+    if f:
+        rect = ctypes.wintypes.RECT()
+        DWMWA_EXTENDED_FRAME_BOUNDS = 9
+        f(ctypes.wintypes.HWND(hwnd),
+          ctypes.wintypes.DWORD(DWMWA_EXTENDED_FRAME_BOUNDS),
+          ctypes.byref(rect),
+          ctypes.sizeof(rect)
+          )
+        return rect.left, rect.top, rect.right, rect.bottom
+
+
 # get windows image of hollow knight
-def grab_screen(region=None):
+def grab_screen():
+    left, top, width, high = get_window_rect(hwnd)
+    region = (left, top, left + width, top + high)
     if region:
         left, top, x2, y2 = region
         width = x2 - left + 1
@@ -26,7 +47,7 @@ def grab_screen(region=None):
     bmp = win32ui.CreateBitmap()
     bmp.CreateCompatibleBitmap(srcdc, width, height)
     memdc.SelectObject(bmp)
-    memdc.BitBlt((0, 0), (width, height), srcdc, (left, top), win32con.SRCCOPY)
+    memdc.BitBlt((0, 0), (width, height), srcdc, (0, 0), win32con.SRCCOPY)
 
     signedIntsArray = bmp.GetBitmapBits(True)
     img = np.fromstring(signedIntsArray, dtype='uint8')

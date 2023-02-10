@@ -1,18 +1,12 @@
 # -*- coding: utf-8 -*-
 import time
-from Tool.Actions import take_action, restart, take_direction
+from Tool.Actions import take_action, restart, take_direction, Nothing
 import collections
 from Tool.FrameBuffer import FrameBuffer
-import Tool
 from ReplayMemory import ReplayMemory
 from Agent import Agent
+from Tool.Helper import pause_game, move_judge, action_judge
 from Tool.GetHP import Hp_getter
-
-window_size = (0, 0, 1920, 1017)
-station_size = (230, 230, 1670, 930)
-
-HP_WIDTH = 768
-HP_HEIGHT = 407
 
 WIDTH = 400
 HEIGHT = 200
@@ -21,15 +15,17 @@ ACTION_DIM = 8
 MOVE_DIM = 4
 
 FRAMEBUFFERSIZE = 4
-INPUT_SHAPE = (FRAMEBUFFERSIZE, 3, HEIGHT, WIDTH)
+
+state_size = (230, 230, 1670, 930)
 
 MEMORY_SIZE = 200  # replay memory size
 MEMORY_WARMUP_SIZE = 24  # replay memory pre store some data
 
-MAX_EPISODES = 1000
+MAX_EPISODES = 1000  # max episodes
 BATCH_SIZE = 10  # memory batch size
 LEARNING_RATE = 0.00001  # learning rate
 GAMMA = 0.99  # reward discount
+UPDATE_TARGET_FREQUENCY = 20  # update target network frequency
 E_GREEDY = 0.12  # greedy policy
 E_GREEDY_DECAY = 1e-6  # decay of greedy policy
 
@@ -38,12 +34,11 @@ move_name = ["Move_Left", "Move_Right", "Turn_Left", "Turn_Right"]
 action_name = ["Attack", "Attack_Up",
                "Short_Jump", "Mid_Jump", "Skill_Up",
                "Skill_Down", "Rush", "Cure"]
-
 DELAY_REWARD = 1
 
 
 def one_episode(hp, agent, memory, PASS_COUNT, paused):
-    restart()
+    restart(state_size)
 
     # learn while load game
 
@@ -67,7 +62,7 @@ def one_episode(hp, agent, memory, PASS_COUNT, paused):
     DelayActions = collections.deque(maxlen=DELAY_REWARD)
     DelayDirection = collections.deque(maxlen=DELAY_REWARD)
 
-    # get HP
+    # enter the game
     while True:
         boss_hp_value = hp.get_boss_hp()
         self_hp = hp.get_self_hp()
@@ -75,10 +70,11 @@ def one_episode(hp, agent, memory, PASS_COUNT, paused):
             break
 
     # System Control
-    thread = FrameBuffer(1, "FrameBuffer", WIDTH, HEIGHT, maxlen=FRAMEBUFFERSIZE)
+    thread = FrameBuffer(1, "FrameBuffer", WIDTH, HEIGHT, state_size, maxlen=FRAMEBUFFERSIZE)
     thread.start()
 
     last_hornet_y = 0
+    print("start")
     while True:
         step += 1
 
@@ -96,15 +92,12 @@ def one_episode(hp, agent, memory, PASS_COUNT, paused):
         # get soul
         soul = hp.get_souls()
 
-        # Use Skill
         hornet_skill1 = False
         if 32 < last_hornet_y < 32.5 and 32 < hornet_y < 32.5:
             hornet_skill1 = True
-
-        # hornet y
         last_hornet_y = hornet_y
 
-        move, action = agent.sample(state, soul, hornet_x, hornet_y, player_x, hornet_skill1)
+        move, action = agent.sample(state)
 
         # take action
         take_direction(move)
@@ -120,11 +113,11 @@ def one_episode(hp, agent, memory, PASS_COUNT, paused):
         next_hornet_x, next_hornet_y = hp.get_hornet_location()
 
         # get reward
-        move_reward = Tool.Helper.move_judge(self_hp, next_self_hp, player_x, next_player_x, hornet_x, next_hornet_x,
-                                             move, hornet_skill1)
+        move_reward = move_judge(self_hp, next_self_hp, player_x, next_player_x, hornet_x, next_hornet_x,
+                                 move, hornet_skill1)
         # print(move_reward)
-        act_reward, done = Tool.Helper.action_judge(boss_hp_value, next_boss_hp_value, self_hp, next_self_hp,
-                                                    next_player_x, next_hornet_x, next_hornet_x, action, hornet_skill1)
+        act_reward, done = action_judge(boss_hp_value, next_boss_hp_value, self_hp, next_self_hp,
+                                        next_player_x, next_hornet_x, next_hornet_x, action, hornet_skill1)
         # print(reward)
         # print( action_name[action], ", ", move_name[d], ", ", reward)
 
@@ -150,14 +143,14 @@ def one_episode(hp, agent, memory, PASS_COUNT, paused):
         #     algorithm.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
 
         total_reward += act_reward + move_reward
-        paused = Tool.Helper.pause_game(paused)
+        paused = pause_game(paused)
 
         if done == 1:
-            Tool.Actions.Nothing()
+            Nothing()
             break
         elif done == 2:
             PASS_COUNT += 1
-            Tool.Actions.Nothing()
+            Nothing()
             time.sleep(3)
             break
 
@@ -186,21 +179,21 @@ if __name__ == '__main__':
     agent = Agent(3, MOVE_DIM, ACTION_DIM, e_greed=E_GREEDY, e_greed_decrement=E_GREEDY_DECAY, lr=LEARNING_RATE,
                   GAMMA=GAMMA, load_path="./Model/agent")
 
-    # HP counter
+    # Hp counter
     hp = Hp_getter()
 
     # paused at the beginning
     paused = True
-    paused = Tool.Helper.pause_game(paused)
+    paused = pause_game(paused)
 
     # start training
     episode = 0
     PASS_COUNT = 0  # pass count
     while episode < MAX_EPISODES:
-        # 训练
+        # training
         episode += 1
-        # if episode % 20 == 1:
-        #     algorithm.replace_target()
+        if episode % UPDATE_TARGET_FREQUENCY == 1:
+            agent.update_target()
 
         total_reward, total_step, PASS_COUNT, remind_hp = one_episode(hp, agent, memory_pool, PASS_COUNT, paused)
         if episode % 10 == 1:

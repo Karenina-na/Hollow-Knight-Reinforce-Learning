@@ -1,11 +1,13 @@
 # Define the actions we may need during training
 # You can define your actions here
+import ctypes
 
 from Tool.SendKey import PressKey, ReleaseKey
 from Tool.WindowsAPI import grab_screen
 import time
 import cv2
 import threading
+import win32gui, win32ui, win32con
 
 # Hash code for key we may use: https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes?redirectedfrom=MSDN
 UP_ARROW = 0x57  # w
@@ -72,7 +74,7 @@ def Attack():
 # def Attack_Down():
 #     PressKey(DOWN_ARROW)
 #     PressKey(X)
-#     time.sleep(0.05)
+#     time.sleep(0.05)l
 #     ReleaseKey(X)
 #     ReleaseKey(DOWN_ARROW)
 #     time.sleep(0.01)
@@ -177,32 +179,40 @@ def Look_up():
     ReleaseKey(UP_ARROW)
 
 
-def restart():
-    station_size = (230, 230, 1670, 930)
+
+
+
+def restart(state_size):
     while True:
-        station = cv2.resize(cv2.cvtColor(grab_screen(station_size), cv2.COLOR_RGBA2RGB), (1000, 500))
+        station = cv2.resize(cv2.cvtColor(grab_screen(state_size), cv2.COLOR_RGBA2RGB), (1000, 500))
         if station[187][300][0] != 0:
             time.sleep(1)
         else:
             break
     time.sleep(1)
     Look_up()
-    time.sleep(1.5)
+    time.sleep(3)
     Look_up()
     time.sleep(1)
-    while True:
-        station = cv2.resize(cv2.cvtColor(grab_screen(station_size), cv2.COLOR_RGBA2RGB), (1000, 500))
-        if station[187][612][0] > 200:
-            # PressKey(DOWN_ARROW)
-            # time.sleep(0.1)
-            # ReleaseKey(DOWN_ARROW)
-            PressKey(L)
-            time.sleep(0.1)
-            ReleaseKey(L)
-            break
-        else:
-            Look_up()
-            time.sleep(0.2)
+    # PressKey(DOWN_ARROW)
+    # time.sleep(0.1)
+    # ReleaseKey(DOWN_ARROW)
+    PressKey(K)
+    time.sleep(0.1)
+    ReleaseKey(K)
+    # while True:
+    #     station = cv2.resize(cv2.cvtColor(grab_screen(state_size), cv2.COLOR_RGBA2RGB),(1000,500))
+    #     if station[187][612][0] > 200:
+    #         # PressKey(DOWN_ARROW)
+    #         # time.sleep(0.1)
+    #         # ReleaseKey(DOWN_ARROW)
+    #         PressKey(K)
+    #         time.sleep(0.1)
+    #         ReleaseKey(K)
+    #         break
+    #     else:
+    #         Look_up()
+    #         time.sleep(0.2)
 
 
 # List for action functions

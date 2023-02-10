@@ -126,13 +126,13 @@ def act_distance_reward(action, next_player_x, next_hornet_x, next_hornet_y):
     distance_reward = 0
     if abs(next_player_x - next_hornet_x) < 12:
         if abs(next_player_x - next_hornet_x) > 6:
-            if action >= 2 and action <= 3:
+            if 2 <= action <= 3:
                 # distance_reward += 0.5
                 pass
             elif next_hornet_y < 29 and action == 6:
                 distance_reward -= 3
         else:
-            if action >= 2 and action <= 3:
+            if 2 <= action <= 3:
                 distance_reward -= 0.5
     else:
         if action == 0 and action == 1:

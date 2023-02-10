@@ -31,7 +31,7 @@ class Hp_getter():
         hd = win32gui.FindWindow(None, "Hollow Knight")
         pid = win32process.GetWindowThreadProcessId(hd)[1]
         self.process_handle = win32api.OpenProcess(0x1F0FFF, False, pid)
-        self.kernal32 = ctypes.windll.LoadLibrary(r"C:\\Windows\\System32\\kernel32.dll")
+        self.kernal32 = ctypes.windll.LoadLibrary(r"C:/Windows/System32/kernel32.dll")
 
         self.hx = 0
         # get dll address
@@ -43,7 +43,7 @@ class Hp_getter():
             temp = win32process.GetModuleFileNameEx(self.process_handle, i.value)
             if temp[-15:] == "UnityPlayer.dll":
                 self.UnityPlayer = i.value
-            if temp[-8:] == "mono.dll":
+            if temp[-8:] == "mono.dll" or temp==r"C:\steam\steamapps\common\Hollow Knight\MonoBleedingEdge\EmbedRuntime\mono-2.0-bdwgc.dll":
                 self.mono = i.value
 
     def get_souls(self):
@@ -60,7 +60,7 @@ class Hp_getter():
         base_address = self.mono + 0x1F50AC
         offset_address = ctypes.c_long()
         offset_list = [0x3B4, 0x24, 0x34, 0x48, 0x50, 0xE4]
-        self.kernal32.ReadProcessMemory(int(self.process_handle), base_address, ctypes.byref(offset_address), 4, None)
+        self.kernal32.ReadProcessMemory(int(self.process_handle), ctypes.c_void_p(base_address), ctypes.byref(offset_address), 4, None)
         for offset in offset_list:
             self.kernal32.ReadProcessMemory(int(self.process_handle), offset_address.value + offset,
                                             ctypes.byref(offset_address), 4, None)
@@ -71,7 +71,8 @@ class Hp_getter():
         base_address = self.UnityPlayer + 0x00FEF994
         offset_address = ctypes.c_long()
         offset_list = [0x54, 0x8, 0x1C, 0x1C, 0x7C, 0x18, 0xAC]
-        self.kernal32.ReadProcessMemory(int(self.process_handle), base_address, ctypes.byref(offset_address), 4, None)
+        self.kernal32.ReadProcessMemory(int(self.process_handle), ctypes.c_void_p(base_address),
+                                        ctypes.byref(offset_address), 4, None)
         for offset in offset_list:
             self.kernal32.ReadProcessMemory(int(self.process_handle), offset_address.value + offset,
                                             ctypes.byref(offset_address), 4, None)
